@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "dist/**"
+      - "scripts/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -19,16 +20,43 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+      - name: Restore converted Effort model
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: dist/models
+          key: effort-int8-v1-${{ hashFiles('scripts/export_effort.py') }}
+      - name: Set up Python
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install conversion dependencies
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          python -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install transformers==5.18.0 onnx==1.23.1 onnxruntime==1.30.0 gdown==6.4.1
+      - name: Download official checkpoint and convert model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          python -m gdown 1UXf1hC9FC1yV93uKwXSkdtepsgpIAU9d -O /tmp/effort.pth
+          python scripts/export_effort.py --checkpoint /tmp/effort.pth --output dist/models/effort-int8.onnx
+      - name: Check model and JavaScript
+        run: |
+          test -s dist/models/effort-int8.onnx
+          node --check dist/app.js
+          node --check dist/worker.js
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Upload app
+      - name: Upload app and model
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist

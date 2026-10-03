@@ -1,5 +1,5 @@
-export const MODEL='onnx-community/ai-image-detect-distilled-ONNX';
-export const REVISION='7f067e23521eeb6d6525221af82c613fb746aaff';
+export const MODEL='Effort CLIP-L/14 (GenImage SD1.4), int8';
+export const REVISION='checkpoint-sha256:7c32ceb4e66d303050e8fc5dc7543fa347693fb4ee6b5df4d6eaf9f6a92fb813';
 export function interpret(results){
  const fake=results.find(r=>r.label==='fake'), real=results.find(r=>r.label==='real');
  if(!fake||!real||!Number.isFinite(fake.score)||!Number.isFinite(real.score)||fake.score<0||fake.score>1)throw new Error('Unexpected detector output.');
